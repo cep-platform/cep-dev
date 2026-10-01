@@ -11,8 +11,6 @@
       inherit system;
 
       modules = [
-        /etc/nixos/configuration.nix
-
         ./modules/base.nix
         ./modules/users.nix
         ./modules/networking.nix
