@@ -1,6 +1,7 @@
-{ ... }:
+{ pkgs, ... }:
 {
     virtualisation.incus.enable = true;
+    virtualisation.incus.package = pkgs.incus;
     virtualisation.incus.ui.enable = true;
     networking.nftables.enable = true;
     users.users.developer.extraGroups = ["incus-admin"];

@@ -1,5 +1,9 @@
 { ... }:
 {
+    system.stateVersion = "25.11";
+
+    boot.initrd.availableKernelModules = [ "virtio_pci" "virtio_scsi" "virtio_blk" "virtio_net" ];
+
     time.timeZone = "Europe/Amsterdam";
     i18n.defaultLocale = "en_US.UTF-8";
 

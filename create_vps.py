@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import os
+import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -15,14 +17,10 @@ API = "https://api.hetzner.cloud/v1"
 TOKEN = os.environ["HCLOUD_TOKEN"]
 
 SSH_KEY_NAME = "cep-local"
-SSH_PUBLIC_KEY = Path.home() / ".ssh" / "id_ed25519.pub"
 SSH_PRIVATE_KEY = Path.home() / ".ssh" / "id_ed25519"
-
-EXPECTED_DEVELOPER_KEY = (
-    "ssh-ed25519 "
-    "AAAAC3NzaC1lZDI1NTE5AAAAICD6jKjzmbaiORhA9DHu3ieCE3AcdDoiKTCrosFlW+i6 "
-    "sven@nixos"
-)
+REPO_DIR = Path(__file__).resolve().parent
+FLAKE = f"{REPO_DIR}#cep-dev"
+USERS_NIX = REPO_DIR / "modules" / "users.nix"
 
 headers = {
     "Authorization": f"Bearer {TOKEN}",
@@ -30,7 +28,7 @@ headers = {
 }
 
 
-def ssh(ip, *command, timeout=5, check=False, input=None):
+def ssh(ip, *command, timeout=5, check=False, input=None, user="root"):
     return subprocess.run(
         [
             "ssh",
@@ -44,7 +42,7 @@ def ssh(ip, *command, timeout=5, check=False, input=None):
             "StrictHostKeyChecking=no",
             "-o",
             "UserKnownHostsFile=/dev/null",
-            f"root@{ip}",
+            f"{user}@{ip}",
             *command,
         ],
         input=input,
@@ -62,13 +60,13 @@ def run_remote_script(ip, script, timeout=30):
     )
 
 
-def wait_for_ssh(ip, message, timeout=300):
+def wait_for_ssh(ip, message, timeout=300, user="root"):
     print(message)
 
     deadline = time.monotonic() + timeout
 
     while time.monotonic() < deadline:
-        result = ssh(ip, "true")
+        result = ssh(ip, "true", user=user)
 
         if result.returncode == 0:
             print("SSH is ready.")
@@ -77,6 +75,31 @@ def wait_for_ssh(ip, message, timeout=300):
         time.sleep(2)
 
     raise RuntimeError(f"Timed out waiting for SSH on {ip}")
+
+
+def install_nixos(ip):
+    print("Installing NixOS with nixos-anywhere...")
+
+    result = subprocess.run(
+        [
+            "nix",
+            "run",
+            "github:nix-community/nixos-anywhere",
+            "--",
+            "--flake",
+            FLAKE,
+            "-i",
+            str(SSH_PRIVATE_KEY),
+            "--target-host",
+            f"root@{ip}",
+        ],
+        cwd=REPO_DIR,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"nixos-anywhere failed with exit code {result.returncode}"
+        )
 
 
 def get_ssh_key(public_key):
@@ -89,15 +112,19 @@ def get_ssh_key(public_key):
 
     keys = response.json()["ssh_keys"]
 
-    for key in keys:
+    if keys:
+        key = keys[0]
+
         if key["public_key"].strip() == public_key:
             return key
 
-    if keys:
-        raise RuntimeError(
-            f"Hetzner SSH key {SSH_KEY_NAME!r} exists but contains "
-            "a different public key"
+        response = requests.delete(
+            f"{API}/ssh_keys/{key['id']}",
+            headers=headers,
         )
+        response.raise_for_status()
+
+        print(f"Overwrote Hetzner SSH key: {SSH_KEY_NAME}")
 
     response = requests.post(
         f"{API}/ssh_keys",
@@ -110,6 +137,25 @@ def get_ssh_key(public_key):
     response.raise_for_status()
 
     return response.json()["ssh_key"]
+
+
+def format_users_nix(public_key):
+    content = USERS_NIX.read_text()
+    print(content)
+
+    content, count = re.subn(
+        r'"ssh-\S+[^"]*"',
+        f'"{public_key}"',
+        content,
+    )
+
+    print(content)
+    if count != 1:
+        raise RuntimeError(
+            f"Expected exactly one SSH key in {USERS_NIX}, found {count}"
+        )
+
+    USERS_NIX.write_text(content)
 
 
 def create_server(ssh_key):
@@ -129,86 +175,13 @@ def create_server(ssh_key):
     return response.json()["server"]
 
 
-def boot_nixos_installer(ip):
-    print("Booting NixOS installer...")
-
-    script = r"""
-set -eux
-
-curl -L \
-  https://github.com/nix-community/nixos-images/releases/latest/download/nixos-kexec-installer-noninteractive-x86_64-linux.tar.gz |
-  tar -xzf- -C /root
-
-/root/kexec/run
-"""
-
-    result = run_remote_script(
-        ip,
-        script,
-        timeout=30,
-    )
-
-    # kexec intentionally terminates SSH.
-    if result.returncode not in (0, 255):
-        raise RuntimeError(
-            f"kexec command failed with exit code {result.returncode}"
-        )
-
-    wait_for_ssh(
-        ip,
-        "Waiting for NixOS installer after kexec...",
-    )
-
-
-def install_nixos(ip):
-    print("Installing cep-dev NixOS configuration...")
-
-    script = r"""
-set -eux
-
-export PATH="/run/current-system/sw/bin:/run/wrappers/bin:/root/.nix-profile/bin:$PATH"
-
-echo "Nix: $(command -v nix)"
-echo "Nix version: $(nix --version)"
-
-nix run 'github:nix-community/disko/latest#disko-install' -- \
-  --flake 'github:cep-platform/cep-dev#cep-dev' \
-  --disk main /dev/sda
-
-reboot
-"""
-
-    result = run_remote_script(
-        ip,
-        script,
-        timeout=30,
-    )
-
-    # Reboot intentionally terminates SSH.
-    if result.returncode not in (0, 255):
-        raise RuntimeError(
-            f"NixOS installation failed with exit code {result.returncode}"
-        )
-
-    wait_for_ssh(
-        ip,
-        "Waiting for installed NixOS...",
-    )
-
-
 def main():
-    if not SSH_PUBLIC_KEY.exists():
-        raise SystemExit(
-            f"SSH public key not found: {SSH_PUBLIC_KEY}"
-        )
+    if len(sys.argv) != 2:
+        raise SystemExit(f"Usage: {sys.argv[0]} <ssh-public-key>")
 
-    public_key = SSH_PUBLIC_KEY.read_text().strip()
+    public_key = sys.argv[1].strip()
 
-    if public_key != EXPECTED_DEVELOPER_KEY:
-        raise SystemExit(
-            "Local SSH public key does not match the developer key "
-            "declared in cep-dev/modules/users.nix."
-        )
+    format_users_nix(public_key)
 
     ssh_key = get_ssh_key(public_key)
 
@@ -230,25 +203,12 @@ def main():
 
     print("Initial Ubuntu SSH works.")
 
-    boot_nixos_installer(ip)
-
     install_nixos(ip)
 
-    result = ssh(
-        ip,
-        "id",
-        "developer",
-        timeout=10,
-    )
+    wait_for_ssh(ip, "Waiting for NixOS to boot...", user="developer")
 
-    if result.returncode != 0:
-        raise RuntimeError(
-            "Developer user was not created successfully"
-        )
-
-    print("NixOS is back.")
-    print("cep-dev is ready.")
-    print(f"SSH: ssh developer@{ip}")
+    print("NixOS is up.")
+    print(f"Connect with: ssh developer@{ip}")
 
 
 if __name__ == "__main__":

@@ -9,6 +9,11 @@
           type = "gpt";
 
           partitions = {
+            boot = {
+              size = "1M";
+              type = "EF02";
+            };
+
             root = {
               size = "100%";
 
@@ -24,8 +29,5 @@
     };
   };
 
-  boot.loader.grub = {
-    enable = true;
-    device = "/dev/sda";
-  };
+  boot.loader.grub.enable = true;
 }
