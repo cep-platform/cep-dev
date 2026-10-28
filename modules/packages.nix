@@ -19,5 +19,6 @@
     opencode
     bind
     htop
+    gnumake
     ];
 }
