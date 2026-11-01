@@ -24,10 +24,18 @@ Spins up a NixOS development VPS on Hetzner Cloud using [nixos-anywhere](https:/
 
 ## Usage
 
-Create a server (installs NixOS from the flake in this repo):
+All operations are available as Makefile targets; run `make help` for an overview:
 
 ```
-uv run create_vps.py "$(cat ~/.ssh/id_ed25519.pub)"
+make help
+```
+
+### Hetzner
+
+Deploy (create the Hetzner server and install NixOS from the flake in this repo):
+
+```
+make hetzner_deploy
 ```
 
 When finished, the script prints the server's IP. Connect with:
@@ -36,18 +44,28 @@ When finished, the script prints the server's IP. Connect with:
 ssh developer@<ip>
 ```
 
-Delete the server when you're done:
+Destroy (delete the server when you're done):
 
 ```
-uv run delete_vps.py
+make hetzner_destroy
 ```
+
+### Any SSH host
+
+Deploy NixOS to a machine reachable over SSH (root access required; the target must be a running Linux system):
+
+```
+make ssh_deploy HOST=root@<ip>
+```
+
+Each target wraps a standalone script (`ssh_deploy.py`, `create_vps.py`, `delete_vps.py`, `copy_repo.py`) that can also be run directly with `uv run`.
 
 ## Developing cep-dev on the VPS
 
 Copy the repository onto the VPS to continue developing cep-dev there:
 
 ```
-uv run copy_repo.py
+make copy_repo
 ```
 
 The script finds the server named `cep-dev` via the API and streams the repository to `~/cep-dev` on the target using tar over SSH. `.git` is included, so it arrives as a working repository; `.env`, `.venv`, `__pycache__`, and `result` are excluded. Re-running it overwrites changed files.

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
+"""Create a Hetzner Cloud server and install NixOS on it."""
+
 import os
-import re
-import subprocess
 import sys
-import time
-from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
 from rich import print
+
+from ssh_deploy import format_users_nix, install_nixos, wait_for_ssh
 
 load_dotenv()
 
@@ -17,89 +17,11 @@ API = "https://api.hetzner.cloud/v1"
 TOKEN = os.environ["HCLOUD_TOKEN"]
 
 SSH_KEY_NAME = "cep-local"
-SSH_PRIVATE_KEY = Path.home() / ".ssh" / "id_ed25519"
-REPO_DIR = Path(__file__).resolve().parent
-FLAKE = f"{REPO_DIR}#cep-dev"
-USERS_NIX = REPO_DIR / "modules" / "users.nix"
 
 headers = {
     "Authorization": f"Bearer {TOKEN}",
     "Content-Type": "application/json",
 }
-
-
-def ssh(ip, *command, timeout=5, check=False, input=None, user="root"):
-    return subprocess.run(
-        [
-            "ssh",
-            "-i",
-            str(SSH_PRIVATE_KEY),
-            "-o",
-            "BatchMode=yes",
-            "-o",
-            f"ConnectTimeout={timeout}",
-            "-o",
-            "StrictHostKeyChecking=no",
-            "-o",
-            "UserKnownHostsFile=/dev/null",
-            f"{user}@{ip}",
-            *command,
-        ],
-        input=input,
-        text=True,
-        check=check,
-    )
-
-
-def run_remote_script(ip, script, timeout=30):
-    return ssh(
-        ip,
-        "bash",
-        timeout=timeout,
-        input=script,
-    )
-
-
-def wait_for_ssh(ip, message, timeout=300, user="root"):
-    print(message)
-
-    deadline = time.monotonic() + timeout
-
-    while time.monotonic() < deadline:
-        result = ssh(ip, "true", user=user)
-
-        if result.returncode == 0:
-            print("SSH is ready.")
-            return
-
-        time.sleep(2)
-
-    raise RuntimeError(f"Timed out waiting for SSH on {ip}")
-
-
-def install_nixos(ip):
-    print("Installing NixOS with nixos-anywhere...")
-
-    result = subprocess.run(
-        [
-            "nix",
-            "run",
-            "github:nix-community/nixos-anywhere",
-            "--",
-            "--flake",
-            FLAKE,
-            "-i",
-            str(SSH_PRIVATE_KEY),
-            "--target-host",
-            f"root@{ip}",
-        ],
-        cwd=REPO_DIR,
-    )
-
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"nixos-anywhere failed with exit code {result.returncode}"
-        )
 
 
 def get_ssh_key(public_key):
@@ -137,25 +59,6 @@ def get_ssh_key(public_key):
     response.raise_for_status()
 
     return response.json()["ssh_key"]
-
-
-def format_users_nix(public_key):
-    content = USERS_NIX.read_text()
-    print(content)
-
-    content, count = re.subn(
-        r'"ssh-\S+[^"]*"',
-        f'"{public_key}"',
-        content,
-    )
-
-    print(content)
-    if count != 1:
-        raise RuntimeError(
-            f"Expected exactly one SSH key in {USERS_NIX}, found {count}"
-        )
-
-    USERS_NIX.write_text(content)
 
 
 def create_server(ssh_key):
@@ -213,4 +116,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
