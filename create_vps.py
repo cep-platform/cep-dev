@@ -2,80 +2,12 @@
 
 """Create a Hetzner Cloud server and install NixOS on it."""
 
-import os
 import sys
 
-import requests
-from dotenv import load_dotenv
 from rich import print
 
+from hetzner_create import create
 from ssh_deploy import format_users_nix, install_nixos, wait_for_ssh
-
-load_dotenv()
-
-API = "https://api.hetzner.cloud/v1"
-TOKEN = os.environ["HCLOUD_TOKEN"]
-
-SSH_KEY_NAME = "cep-local"
-
-headers = {
-    "Authorization": f"Bearer {TOKEN}",
-    "Content-Type": "application/json",
-}
-
-
-def get_ssh_key(public_key):
-    response = requests.get(
-        f"{API}/ssh_keys",
-        headers=headers,
-        params={"name": SSH_KEY_NAME},
-    )
-    response.raise_for_status()
-
-    keys = response.json()["ssh_keys"]
-
-    if keys:
-        key = keys[0]
-
-        if key["public_key"].strip() == public_key:
-            return key
-
-        response = requests.delete(
-            f"{API}/ssh_keys/{key['id']}",
-            headers=headers,
-        )
-        response.raise_for_status()
-
-        print(f"Overwrote Hetzner SSH key: {SSH_KEY_NAME}")
-
-    response = requests.post(
-        f"{API}/ssh_keys",
-        headers=headers,
-        json={
-            "name": SSH_KEY_NAME,
-            "public_key": public_key,
-        },
-    )
-    response.raise_for_status()
-
-    return response.json()["ssh_key"]
-
-
-def create_server(ssh_key):
-    response = requests.post(
-        f"{API}/servers",
-        headers=headers,
-        json={
-            "name": "cep-dev",
-            "server_type": "cx23",
-            "image": "ubuntu-22.04",
-            "location": "nbg1",
-            "ssh_keys": [ssh_key["id"]],
-        },
-    )
-    response.raise_for_status()
-
-    return response.json()["server"]
 
 
 def main():
@@ -86,25 +18,7 @@ def main():
 
     format_users_nix(public_key)
 
-    ssh_key = get_ssh_key(public_key)
-
-    print(
-        f"Using Hetzner SSH key: "
-        f"{ssh_key['name']} ({ssh_key['id']})"
-    )
-
-    server = create_server(ssh_key)
-
-    ip = server["public_net"]["ipv4"]["ip"]
-
-    print(f"Created cep-dev: {ip}")
-
-    wait_for_ssh(
-        ip,
-        "Waiting for initial SSH...",
-    )
-
-    print("Initial Ubuntu SSH works.")
+    ip = create(public_key)
 
     install_nixos(ip)
 

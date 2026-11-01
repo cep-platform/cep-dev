@@ -6,8 +6,9 @@ Tooling to create and delete a NixOS development VPS (`cep-dev`) on Hetzner Clou
 
 ## Structure
 
-- `ssh_deploy.py` — generic SSH deployment: installs the NixOS configuration on any SSH-reachable host via nixos-anywhere (root required); also holds the shared SSH/deploy helpers used by `create_vps.py`
-- `create_vps.py` — Hetzner part of the deploy: registers the SSH key with the Hetzner API, creates the server named `cep-dev`, then hands off to `ssh_deploy.py`
+- `ssh_deploy.py` — generic SSH deployment: installs the NixOS configuration on any SSH-reachable host via nixos-anywhere (root required); also holds the shared SSH/deploy helpers used by `create_vps.py` and `hetzner_create.py`
+- `hetzner_create.py` — Hetzner part: registers the SSH key with the Hetzner API, creates the server named `cep-dev`, and waits for its SSH (no NixOS install)
+- `create_vps.py` — end-to-end Hetzner deploy: injects the SSH key into `modules/users.nix`, creates the server via `hetzner_create.py`, then installs NixOS
 - `delete_vps.py` — finds and deletes the server named `cep-dev` (asks for confirmation)
 - `copy_repo.py` — finds the server named `cep-dev` and copies this repository to `~/cep-dev` on it (tar over SSH; excludes `.env`, `.venv`, `__pycache__`, `result`)
 - `Makefile` — convenience targets wrapping the scripts
@@ -26,6 +27,12 @@ Deploy to Hetzner (create the server and install NixOS):
 
 ```
 make hetzner_deploy
+```
+
+Create the Hetzner VPS only (no NixOS install; deploy later with `make ssh_deploy HOST=root@<ip>`):
+
+```
+make hetzner_create
 ```
 
 Delete the Hetzner VPS:

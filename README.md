@@ -44,6 +44,12 @@ When finished, the script prints the server's IP. Connect with:
 ssh developer@<ip>
 ```
 
+Create only the Hetzner server (no NixOS install) — e.g. to deploy it later with `make ssh_deploy HOST=root@<ip>`:
+
+```
+make hetzner_create
+```
+
 Destroy (delete the server when you're done):
 
 ```
@@ -58,7 +64,7 @@ Deploy NixOS to a machine reachable over SSH (root access required; the target m
 make ssh_deploy HOST=root@<ip>
 ```
 
-Each target wraps a standalone script (`ssh_deploy.py`, `create_vps.py`, `delete_vps.py`, `copy_repo.py`) that can also be run directly with `uv run`.
+Each target wraps a standalone script (`ssh_deploy.py`, `hetzner_create.py`, `create_vps.py`, `delete_vps.py`, `copy_repo.py`) that can also be run directly with `uv run`.
 
 ## Developing cep-dev on the VPS
 
