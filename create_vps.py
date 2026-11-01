@@ -7,6 +7,7 @@ import sys
 from rich import print
 
 from hetzner_create import create
+from repos_sync import sync
 from ssh_deploy import format_users_nix, install_nixos, wait_for_ssh
 
 
@@ -25,6 +26,9 @@ def main():
     wait_for_ssh(ip, "Waiting for NixOS to boot...", user="developer")
 
     print("NixOS is up.")
+
+    sync(ip)
+
     print(f"Connect with: ssh developer@{ip}")
 
 

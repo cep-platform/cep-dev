@@ -8,6 +8,8 @@ import sys
 import time
 from pathlib import Path
 
+from repos_sync import sync
+
 SSH_PRIVATE_KEY = Path.home() / ".ssh" / "id_ed25519"
 SSH_PUBLIC_KEY = SSH_PRIVATE_KEY.with_suffix(".pub")
 REPO_DIR = Path(__file__).resolve().parent
@@ -138,6 +140,8 @@ def main():
     install_nixos(target)
 
     wait_for_ssh(ip, "Waiting for NixOS to boot...", user="developer")
+
+    sync(ip)
 
     print("NixOS is up.")
     print(f"Connect with: ssh developer@{ip}")

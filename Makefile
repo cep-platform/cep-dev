@@ -1,6 +1,6 @@
 SSH_PUBLIC_KEY ?= $(shell cat $(HOME)/.ssh/id_ed25519.pub)
 
-.PHONY: help ssh_deploy hetzner_create hetzner_deploy hetzner_destroy copy_repo
+.PHONY: help ssh_deploy hetzner_create hetzner_deploy hetzner_destroy copy_repo repos_sync
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -20,3 +20,6 @@ hetzner_destroy: ## Delete the Hetzner VPS
 
 copy_repo: ## Copy the repository to the VPS
 	uv run copy_repo.py
+
+repos_sync: ## Clone/update the repos listed in repos.txt on the VPS: make repos_sync [HOST=<user@host>]
+	uv run repos_sync.py $(HOST)

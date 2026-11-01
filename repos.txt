@@ -1,0 +1,8 @@
+# Repositories cloned onto the dev machine, one git URL per line.
+# Each is cloned into ~/<name> (name derived from the URL);
+# repositories that already exist are updated with `git pull --ff-only`.
+# Private repositories require the machine to be authenticated, e.g.:
+#   gh auth login && gh auth setup-git
+https://github.com/cep-platform/cep-dev.git
+https://github.com/cep-platform/cep.git
+https://github.com/svenhendrikx/okay-nvim-conf.git

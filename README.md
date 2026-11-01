@@ -64,11 +64,27 @@ Deploy NixOS to a machine reachable over SSH (root access required; the target m
 make ssh_deploy HOST=root@<ip>
 ```
 
-Each target wraps a standalone script (`ssh_deploy.py`, `hetzner_create.py`, `create_vps.py`, `delete_vps.py`, `copy_repo.py`) that can also be run directly with `uv run`.
+Each target wraps a standalone script (`ssh_deploy.py`, `hetzner_create.py`, `create_vps.py`, `delete_vps.py`, `copy_repo.py`, `repos_sync.py`) that can also be run directly with `uv run`.
+
+### Repositories
+
+The repositories listed in `repos.txt` are cloned onto the machine at the end of every deploy (`make hetzner_deploy` and `make ssh_deploy`). To (re-)sync them manually:
+
+```
+make repos_sync
+```
+
+or on any other host:
+
+```
+make repos_sync HOST=developer@<ip>
+```
+
+Each repository is cloned into `~/<name>` (name derived from the URL); repositories that already exist are updated with `git pull --ff-only`. Without `HOST`, the scripts find the Hetzner server named `cep-dev` via the API. Private repositories require the machine to be authenticated first, e.g. `gh auth login` followed by `gh auth setup-git`.
 
 ## Developing cep-dev on the VPS
 
-Copy the repository onto the VPS to continue developing cep-dev there:
+The repository itself is listed in `repos.txt`, so it is already cloned to `~/cep-dev` after a deploy. To stream your current local checkout (including uncommitted changes) over instead:
 
 ```
 make copy_repo
