@@ -20,5 +20,6 @@
     bind
     htop
     gnumake
+    pi-coding-agent
     ];
 }
