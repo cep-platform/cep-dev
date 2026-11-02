@@ -14,12 +14,13 @@
         tree
         mlocate
 	python3
-	uv
-    lazydocker
-    opencode
+	# Fast-moving dev tooling comes from nixpkgs-unstable (pkgs.unstable.*).
+	unstable.uv
+    unstable.lazydocker
+    unstable.opencode
     bind
     htop
     gnumake
-    pi-coding-agent
+    unstable.pi-coding-agent
     ];
 }

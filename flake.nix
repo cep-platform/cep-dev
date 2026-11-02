@@ -4,21 +4,29 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
+    # Unstable is only used for fast-moving development tooling
+    # (pi-coding-agent, opencode, uv, lazydocker). Everything that
+    # powers the system (kernel, systemd, services) stays on stable.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     disko.url = "github:nix-community/disko";
     disko.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, disko, ... }:
+  outputs = { self, nixpkgs, nixpkgs-unstable, disko, ... }:
   let
     system = "x86_64-linux";
   in {
     nixosConfigurations.cep-dev = nixpkgs.lib.nixosSystem {
       inherit system;
 
+      specialArgs.unstable = nixpkgs-unstable;
+
       modules = [
         ./modules/base.nix
         ./modules/users.nix
         ./modules/networking.nix
+        ./modules/unstable.nix
         ./modules/packages.nix
         ./modules/programs.nix
         ./modules/aliases.nix
