@@ -34,6 +34,29 @@ in
         config = {
             "core.https_address" = ":8443";
         };
+
+        # incus-compose keeps built/pulled images in a private cache project
+        # (`--image-cache`, default "incus-compose-cache") and creates it on
+        # its first command; cep's image/build.sh imports into it before any
+        # incus-compose command has run on a fresh host, though, so preseed
+        # the project instead of a manual post-deploy step. The config must be
+        # explicit: omitted config marshals as `null` and disables the
+        # daemon's default project features (features.images among them).
+        # This mirrors what incus-compose itself ends up creating (daemon
+        # defaults + its "incus-compose: <name>" description); a pre-existing
+        # project is adopted unchanged by incus-compose.
+        projects = [
+        {
+            name = "incus-compose-cache";
+            description = "incus-compose: incus-compose-cache";
+            config = {
+                "features.images" = "true";
+                "features.profiles" = "true";
+                "features.storage.volumes" = "true";
+                "features.storage.buckets" = "true";
+            };
+        }
+        ];
         networks = [
         {
             config = {
