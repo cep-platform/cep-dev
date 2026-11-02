@@ -96,4 +96,10 @@ in
         ];
     };
 
+    # ic-healthd (incus-compose's health daemon) is its own container and
+    # cannot reach incus via the unix socket: point it at the preseeded
+    # HTTPS endpoint (core.https_address ":8443" on incusbr0 10.0.100.1/24).
+    # An explicit INCUS_COMPOSE_HEALTHD_INCUS in ~/cep/.env still overrides this.
+    environment.sessionVariables.INCUS_COMPOSE_HEALTHD_INCUS = "https://10.0.100.1:8443";
+
 }
