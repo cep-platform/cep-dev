@@ -5,8 +5,58 @@ Spins up a NixOS development VPS on Hetzner Cloud using [nixos-anywhere](https:/
 ## Prerequisites
 
 - A Hetzner Cloud API token
-- An SSH key pair at `~/.ssh/id_ed25519`
-- [uv](https://docs.astral.sh/uv/) and [Nix](https://nix.dev/) installed
+- `git`, `make`, `ssh`, and `curl` — standard on most Unix systems; on a minimal Debian/Ubuntu host run `sudo apt install git make curl openssh-client`
+- An SSH key pair at `~/.ssh/id_ed25519`, created with:
+
+  ```
+  ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+  ```
+
+- [uv](#uv) and [nix](#nix), installed as described below
+
+### uv
+
+[uv](https://docs.astral.sh/uv/) runs the Python scripts and manages their dependencies. It downloads the required Python 3.13 itself, so no system Python is needed.
+
+Install:
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Restart your shell (the installer puts uv in `~/.local/bin`) and verify:
+
+```
+uv --version
+```
+
+Alternatives: `brew install uv` or `pipx install uv`.
+
+### nix
+
+The deploys run [nixos-anywhere](https://github.com/nix-community/nixos-anywhere) through [nix](https://nix.dev/), which requires flake support. The recommended install is the [Determinate Systems nix-installer](https://github.com/DeterminateSystems/nix-installer): it works on Linux and macOS, enables flakes by default, and can be cleanly uninstalled (on Linux it prompts for sudo to set up the nix daemon):
+
+```
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+```
+
+Restart your shell and verify:
+
+```
+nix --version
+```
+
+Notes:
+
+- With the official installer from [nixos.org](https://nixos.org/download/) instead, flakes are not enabled by default; add to `~/.config/nix/nix.conf`:
+
+  ```
+  experimental-features = nix-command flakes
+  ```
+
+- On NixOS, nix is preinstalled — just set `nix.settings.experimental-features = [ "nix-command" "flakes" ];`.
+- Uninstall with `/nix/nix-installer uninstall`.
+- Deploying from an x86_64 Linux host works out of the box; from macOS, building the `x86_64-linux` closure needs extra setup (e.g. nixos-anywhere's `--build-host`).
 
 ## Setup
 
