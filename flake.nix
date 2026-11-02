@@ -26,6 +26,11 @@
         ./modules/disk.nix
         ./modules/incus.nix
 
+        # TEMP: Docker is only enabled to work around DNS issues.
+        # Remove this entry (and modules/docker.nix) once the DNS issues
+        # are resolved.
+        ./modules/docker.nix
+
         disko.nixosModules.disko
       ];
     };
